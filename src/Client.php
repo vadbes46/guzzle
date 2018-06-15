@@ -91,11 +91,12 @@ class Client implements ClientInterface
         if ($uri != '') {
             $span = Tracer::getCurrentSpan();
             if ($span) {
-                $guzzleSpan = Tracer::startSpan('GUZZLE ' . $uri, [
+                $guzzleSpan = Tracer::startSpan('GUZZLE ' . strtoupper($method), [
                     'childOf' => $span
                 ]);
                 $guzzleSpan->addTags([
-                    'is_external' => true
+                    'is_external' => true,
+                    'http.uri' => $uri
                 ]);
             }
             else {
@@ -118,7 +119,11 @@ class Client implements ClientInterface
                         ]
                     ]
                 ]);
-                $guzzleSpan = Tracer::startSpan('GUZZLE ' . $uri);
+                $guzzleSpan = Tracer::startSpan('GUZZLE ' . strtoupper($method));
+                $guzzleSpan->addTags([
+                    'is_external' => true,
+                    'http.uri' => $uri
+                ]);
             }
         }
 
@@ -204,6 +209,10 @@ class Client implements ClientInterface
         //         ]
         //     ]);
         //     $guzzleSpan = Tracer::startSpan('GUZZLE ' . $request->getMethod() . ' ' . $request->getUrl());
+        //     $guzzleSpan->addTags([
+        //         'is_external' => true,
+        //         'http.uri' => $uri
+        //     ]);
         // }
 
         $ret = $this->sendAsync($request, $options)->wait();
