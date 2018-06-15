@@ -12,7 +12,7 @@ use Psr\Http\Message\UriInterface;
  */
 interface ClientInterface
 {
-    const VERSION = '6.3.3';
+    const VERSION = '6.3.3.x';
 
     /**
      * Send an HTTP request.

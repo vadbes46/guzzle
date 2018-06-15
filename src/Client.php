@@ -7,6 +7,7 @@ use GuzzleHttp\Psr7;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Eco\Tracer\Tracer;
 
 /**
  * @method ResponseInterface get(string|UriInterface $uri, array $options = [])
@@ -77,6 +78,9 @@ class Client implements ClientInterface
 
     public function __call($method, $args)
     {
+        // file_put_contents("/data/logs/1.txt",PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->__call method " . $method,FILE_APPEND);
+
         if (count($args) < 1) {
             throw new \InvalidArgumentException('Magic request methods require a URI and optional options array');
         }
@@ -84,13 +88,61 @@ class Client implements ClientInterface
         $uri = $args[0];
         $opts = isset($args[1]) ? $args[1] : [];
 
-        return substr($method, -5) === 'Async'
+        if ($uri != '') {
+            $span = Tracer::getCurrentSpan();
+            if ($span) {
+                $guzzleSpan = Tracer::startSpan('GUZZLE ' . $uri, [
+                    'childOf' => $span
+                ]);
+                $guzzleSpan->addTags([
+                    'is_external' => true
+                ]);
+            }
+            else {
+                Tracer::init('GUZZLE',[
+                    'enabled' => true,
+                    'mode' => 0,
+                    'debug_output' => true,
+                    'udp_transport' => true,
+                    'reporter' => [
+                        'type' => 'udp',
+                        'options' => [
+                            'addr' => '192.168.13.13', /* todo */
+                            'port' => 6831,
+                        ],
+                    ],
+                    'sampler' => [
+                        'type' => 'percentage',
+                        'options' => [
+                            'percents' => 100
+                        ]
+                    ]
+                ]);
+                $guzzleSpan = Tracer::startSpan('GUZZLE ' . $uri);
+            }
+        }
+
+        // file_put_contents("/data/logs/1.txt",print_r($uri,true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt",print_r($opts,true).PHP_EOL,FILE_APPEND);
+
+        $ret = substr($method, -5) === 'Async'
             ? $this->requestAsync(substr($method, 0, -5), $uri, $opts)
             : $this->request($method, $uri, $opts);
+
+        if (isset($guzzleSpan)) {
+            $guzzleSpan->addLogs([
+                'options' => print_r($opts,true),
+            ]);
+            Tracer::finishSpan($guzzleSpan);
+        }
+
+        return $ret;
     }
 
     public function sendAsync(RequestInterface $request, array $options = [])
     {
+        // file_put_contents("/data/logs/1.txt","--->sendAsync".PHP_EOL,FILE_APPEND);
+
         // Merge the base URI into the request URI if needed.
         $options = $this->prepareDefaults($options);
 
@@ -103,11 +155,73 @@ class Client implements ClientInterface
     public function send(RequestInterface $request, array $options = [])
     {
         $options[RequestOptions::SYNCHRONOUS] = true;
-        return $this->sendAsync($request, $options)->wait();
+
+        // file_put_contents("/data/logs/1.txt",PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send".PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request,true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getScheme(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getAuthority(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getUserInfo(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getHost(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getPort(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getPath(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getQuery(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::send request - ".print_r($request->getUri()->getFragment(),true).PHP_EOL,FILE_APPEND);
+        // file_put_contents("/data/logs/1.txt","--->Client::request options - ".print_r($options,true).PHP_EOL,FILE_APPEND);
+
+        // $span = Tracer::getCurrentSpan();
+        // if ($span) {
+        //     file_put_contents("/data/logs/1.txt","--->send span ".PHP_EOL,FILE_APPEND);
+        //     file_put_contents("/data/logs/1.txt","--->send span ".print_r($request->getMethod(),true) . PHP_EOL,FILE_APPEND);
+            
+        //     $guzzleSpan = Tracer::startSpan('GUZZLE ' . print_r($request->getMethod(),true) . ' ' . print_r($request->getUri()->getHost(),true) . ' ' . print_r($request->getUri()->getPort(),true) . ' ' . print_r($request->getUri()->getPath(),true) . ' ' . print_r($request->getUri()->getQuery(),true), [
+        //         'childOf' => $span
+        //     ]);
+        //     $guzzleSpan->addTags([
+        //         'is_external' => true
+        //     ]);
+        // }
+        // else {
+        //     file_put_contents("/data/logs/1.txt","--->send NO span".PHP_EOL,FILE_APPEND);
+            
+        //     Tracer::init('GUZZLE',[
+        //         'enabled' => true,
+        //         'mode' => 0,
+        //         'debug_output' => true,
+        //         'udp_transport' => true,
+        //         'reporter' => [
+        //             'type' => 'udp',
+        //             'options' => [
+        //                 'addr' => '192.168.13.13', /* todo */
+        //                 'port' => 6831,
+        //             ],
+        //         ],
+        //         'sampler' => [
+        //             'type' => 'percentage',
+        //             'options' => [
+        //                 'percents' => 100
+        //             ]
+        //         ]
+        //     ]);
+        //     $guzzleSpan = Tracer::startSpan('GUZZLE ' . $request->getMethod() . ' ' . $request->getUrl());
+        // }
+
+        $ret = $this->sendAsync($request, $options)->wait();
+        
+        // if (isset($guzzleSpan)) {
+        //     $guzzleSpan->addLogs([
+        //         'data' => print_r($request->getData(),true),
+        //     ]);
+        //     Tracer::finishSpan($guzzleSpan);
+        // }
+
+        return $ret;
     }
 
     public function requestAsync($method, $uri = '', array $options = [])
     {
+        // file_put_contents("/data/logs/1.txt","--->requestAsync".PHP_EOL,FILE_APPEND);
+
         $options = $this->prepareDefaults($options);
         // Remove request modifying parameter because it can be done up-front.
         $headers = isset($options['headers']) ? $options['headers'] : [];
@@ -128,6 +242,13 @@ class Client implements ClientInterface
     public function request($method, $uri = '', array $options = [])
     {
         $options[RequestOptions::SYNCHRONOUS] = true;
+        // if ($uri != '') {
+        //     file_put_contents("/data/logs/1.txt",PHP_EOL,FILE_APPEND);
+        //     file_put_contents("/data/logs/1.txt","--->Client::request".PHP_EOL,FILE_APPEND);
+        //     file_put_contents("/data/logs/1.txt","--->Client::request method - ".print_r($method,true).PHP_EOL,FILE_APPEND);
+        //     file_put_contents("/data/logs/1.txt","--->Client::request uri - ".print_r($uri,true).PHP_EOL,FILE_APPEND);
+        //     file_put_contents("/data/logs/1.txt","--->Client::request options - ".print_r($options,true).PHP_EOL,FILE_APPEND);
+        // }
         return $this->requestAsync($method, $uri, $options)->wait();
     }
 

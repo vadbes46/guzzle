@@ -15,7 +15,8 @@
     "require": {
         "php": ">=5.5",
         "guzzlehttp/psr7": "^1.4",
-        "guzzlehttp/promises": "^1.0"
+        "guzzlehttp/promises": "^1.0",
+        "eco/tracer": "1.0.2"
     },
     "require-dev": {
         "ext-curl": "*",
@@ -40,5 +41,11 @@
         "branch-alias": {
             "dev-master": "6.3-dev"
         }
-    }
+    },
+    "repositories": [
+        {
+          "type": "vcs",
+          "url": "ssh://git@stash.paymantix.com:7999/pr2/tracer.git"
+        }
+      ]
 }
